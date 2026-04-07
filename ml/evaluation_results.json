@@ -1,0 +1,7 @@
+{
+  "precision_at_10": 0.3323,
+  "recall_at_10": 0.1689,
+  "rmse": 2.9591,
+  "users_evaluated": 500,
+  "users_with_ratings": 498
+}

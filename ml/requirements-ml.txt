@@ -1,0 +1,4 @@
+# Install these only when training or re-training recommendation models.
+# Runtime API does not require implicit.
+-r ../requirements.txt
+implicit>=0.7
