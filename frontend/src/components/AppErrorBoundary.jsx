@@ -59,3 +59,4 @@ export default class AppErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
