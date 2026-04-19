@@ -419,3 +419,4 @@ export async function writeMovieReview(_userId, movieId, reviewText) {
 export async function getUserProfile(userId) {
   return fetchJSON(`${API_BASE}/profile/${userId}/`);
 }
+
