@@ -418,3 +418,4 @@ export default function Hero({ movie, movies = [], onMoreInfo, userId = null }) 
     </section>
   );
 }
+
