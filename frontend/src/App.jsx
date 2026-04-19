@@ -264,6 +264,7 @@ export default function App() {
   const [personalizeNotice, setPersonalizeNotice] = useState('');
   const [heroGenreMovies, setHeroGenreMovies] = useState([]);
   const modalImageWarmCacheRef = useRef(new Set());
+  const rowImageWarmCacheRef = useRef(new Set());
   const [currentView, setCurrentView] = useState(() => (
     window.location.pathname === '/profile' ? 'profile' : 'home'
   ));
@@ -651,10 +652,32 @@ export default function App() {
     img.src = imageUrl;
   }, []);
 
+  const warmRowImage = useCallback((movie) => {
+    const imageUrl = movie?.card_image_url
+      || movie?.poster_url
+      || movie?.backdrop_url
+      || movie?.hero_image_url;
+
+    if (!imageUrl || rowImageWarmCacheRef.current.has(imageUrl)) {
+      return;
+    }
+
+    rowImageWarmCacheRef.current.add(imageUrl);
+    const img = new Image();
+    img.decoding = 'async';
+    img.src = imageUrl;
+  }, []);
+
   const handleMovieClick = useCallback((movie) => {
     warmMovieImage(movie);
     setSelectedMovie(movie);
   }, [warmMovieImage]);
+
+  const handleScrollToSections = useCallback(() => {
+    const sections = document.getElementById('home-sections');
+    if (!sections) return;
+    sections.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const handleToggleWatchlist = useCallback(async (movie) => {
     if (!authUserId) return false;
@@ -919,6 +942,31 @@ export default function App() {
     return () => window.clearTimeout(timeoutId);
   }, [heroMovies, warmMovieImage]);
 
+  useEffect(() => {
+    const sourceMovies = combineMovieLists(
+      homeData?.trending || [],
+      homeData?.hindi || [],
+      genreRows.comedy || [],
+      genreRows.anime || [],
+    ).slice(0, 14);
+
+    if (!sourceMovies.length) return undefined;
+
+    const warm = () => {
+      for (const movie of sourceMovies) {
+        warmRowImage(movie);
+      }
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(warm, { timeout: 900 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = window.setTimeout(warm, 150);
+    return () => window.clearTimeout(timeoutId);
+  }, [homeData?.trending, homeData?.hindi, genreRows.comedy, genreRows.anime, warmRowImage]);
+
   const showSearchOverlay = searchLoading || searchResults !== null;
 
   return (
@@ -1055,11 +1103,12 @@ export default function App() {
             movie={heroMovie}
             movies={heroMovies}
             onMoreInfo={handleMovieClick}
+            onScrollNext={handleScrollToSections}
             userId={authUserId}
           />
 
           {/* Movie Rows */}
-          <div className="page-content">
+          <div className="page-content" id="home-sections">
             {/* Your Preference */}
             {isAuthenticated && hasPreferenceSelection && (
               <MovieRow

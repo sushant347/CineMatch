@@ -77,6 +77,7 @@ export default function MovieModal({
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingSaving, setRatingSaving] = useState(false);
   const [ratingToast, setRatingToast] = useState('');
+  const [showReviews, setShowReviews] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsError, setReviewsError] = useState('');
@@ -152,8 +153,8 @@ export default function MovieModal({
   }, [movie, userId, userRatings]);
 
   useEffect(() => {
-    if (!movie?.movie_id) {
-      setReviews([]);
+    if (!movie?.movie_id || !showReviews) {
+      setReviewsLoading(false);
       return;
     }
 
@@ -183,12 +184,16 @@ export default function MovieModal({
     return () => {
       active = false;
     };
-  }, [movie, userId]);
+  }, [movie, userId, showReviews]);
 
 
   useEffect(() => {
     setReviewText('');
     setReviewError('');
+    setReviews([]);
+    setReviewsError('');
+    setReviewsLoading(false);
+    setShowReviews(false);
   }, [movie?.movie_id]);
 
   useEffect(() => {
@@ -246,6 +251,8 @@ export default function MovieModal({
   const isInWatchlist = Boolean(watchlist?.has(currentMovieId));
   const isWatched = Boolean(watched?.has(currentMovieId));
   const canLeaveFeedback = Boolean(userId && isWatched);
+  const showingRelatedTitleReviews = reviews.length > 0
+    && reviews.every((review) => review?.is_related_title || review?.is_fallback);
 
   useEffect(() => {
     setBackdropImageIndex(0);
@@ -441,47 +448,63 @@ export default function MovieModal({
 
           <section className="modal__reviews">
             <h3 className="modal__section-title">Reviews</h3>
+            <button
+              type="button"
+              className="modal__reviews-toggle"
+              onClick={() => setShowReviews((prev) => !prev)}
+            >
+              {showReviews ? 'Hide Reviews' : 'Show Reviews'}
+            </button>
 
-            {canLeaveFeedback ? (
-              <form className="modal__review-form" onSubmit={handleReviewSubmit}>
-                <textarea
-                  value={reviewText}
-                  onChange={(event) => setReviewText(event.target.value)}
-                  placeholder="Write your review..."
-                  maxLength={2000}
-                />
-                {reviewError && <p className="modal__review-error">{reviewError}</p>}
-                <button type="submit" disabled={reviewSaving}>
-                  {reviewSaving ? 'Saving...' : 'Post Review'}
-                </button>
-              </form>
-            ) : userId ? (
-              <p className="modal__review-login-hint">Mark this movie as watched to write a review.</p>
-            ) : (
-              <p className="modal__review-login-hint">Login to write a review for this movie.</p>
-            )}
+            {showReviews && (
+              <>
+                {canLeaveFeedback ? (
+                  <form className="modal__review-form" onSubmit={handleReviewSubmit}>
+                    <textarea
+                      value={reviewText}
+                      onChange={(event) => setReviewText(event.target.value)}
+                      placeholder="Write your review..."
+                      maxLength={2000}
+                    />
+                    {reviewError && <p className="modal__review-error">{reviewError}</p>}
+                    <button type="submit" disabled={reviewSaving}>
+                      {reviewSaving ? 'Saving...' : 'Post Review'}
+                    </button>
+                  </form>
+                ) : userId ? (
+                  <p className="modal__review-login-hint">Mark this movie as watched to write a review.</p>
+                ) : (
+                  <p className="modal__review-login-hint">Login to write a review for this movie.</p>
+                )}
 
-            {reviewsLoading ? (
-              <p className="modal__reviews-empty">Loading reviews...</p>
-            ) : reviewsError ? (
-              <p className="modal__review-error">{reviewsError}</p>
-            ) : reviews.length === 0 ? (
-              <p className="modal__reviews-empty">No reviews yet. Be the first to write one.</p>
-            ) : (
-              <div className="modal__reviews-list">
-                {reviews.map((review, index) => (
-                  <article
-                    className={`modal__review-item ${review.is_mine ? 'mine' : ''}`}
-                    key={`${review.user_id}-${index}`}
-                  >
-                    <header>
-                      <strong>{review.user_name || 'Unknown viewer'}</strong>
-                      <span>{formatReviewDate(review.updated_at || review.created_at)}</span>
-                    </header>
-                    <p>{review.review_text}</p>
-                  </article>
-                ))}
-              </div>
+                {reviewsLoading ? (
+                  <p className="modal__reviews-empty">Loading reviews...</p>
+                ) : reviewsError ? (
+                  <p className="modal__review-error">{reviewsError}</p>
+                ) : reviews.length === 0 ? (
+                  <p className="modal__reviews-empty">No reviews yet. Be the first to write one.</p>
+                ) : (
+                  <>
+                    {showingRelatedTitleReviews && (
+                      <p className="modal__reviews-empty">Showing reviews from matching title editions in the catalog.</p>
+                    )}
+                    <div className="modal__reviews-list">
+                      {reviews.map((review, index) => (
+                        <article
+                          className={`modal__review-item ${review.is_mine ? 'mine' : ''}`}
+                          key={`${review.user_id}-${index}`}
+                        >
+                          <header>
+                            <strong>{review.user_name || 'Unknown viewer'}</strong>
+                            <span>{formatReviewDate(review.updated_at || review.created_at)}</span>
+                          </header>
+                          <p>{review.review_text}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </>
             )}
           </section>
 
@@ -517,6 +540,7 @@ export default function MovieModal({
                       watched={watched}
                       onToggleWatched={onToggleWatched}
                       userId={userId}
+                      popupVariant="inline"
                     />
                   );
                 })}

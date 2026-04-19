@@ -39,7 +39,7 @@ function buildHeroResponsiveSource(url) {
   const assetPath = match[2];
   const base = normalizedUrl.slice(0, normalizedUrl.indexOf('/t/p/'));
   return {
-    src: `${base}/t/p/w1280/${assetPath}`,
+    src: `${base}/t/p/w780/${assetPath}`,
     srcSet: [
       `${base}/t/p/w500/${assetPath} 500w`,
       `${base}/t/p/w780/${assetPath} 780w`,
@@ -69,7 +69,13 @@ function toFullLanguageName(languageCode) {
   return fallbackName;
 }
 
-export default function Hero({ movie, movies = [], onMoreInfo, userId = null }) {
+export default function Hero({
+  movie,
+  movies = [],
+  onMoreInfo,
+  onScrollNext = null,
+  userId = null,
+}) {
   const heroMovies = useMemo(() => {
     if (Array.isArray(movies) && movies.length > 0) {
       return movies.filter(Boolean);
@@ -111,6 +117,17 @@ export default function Hero({ movie, movies = [], onMoreInfo, userId = null }) 
       setActiveIndex(index);
       setIsTransitioning(false);
     }, 300);
+  };
+
+  const handleScrollNext = () => {
+    if (typeof onScrollNext === 'function') {
+      onScrollNext();
+      return;
+    }
+    const sections = document.getElementById('home-sections');
+    if (sections) {
+      sections.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const activeMovie = heroMovies[activeIndex] || null;
@@ -414,6 +431,18 @@ export default function Hero({ movie, movies = [], onMoreInfo, userId = null }) 
             ))}
           </div>
         )}
+
+        <button
+          type="button"
+          className="hero__scroll-down"
+          onClick={handleScrollNext}
+          aria-label="Scroll down to movie sections"
+        >
+          <span>Scroll for more</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
       </div>
     </section>
   );
