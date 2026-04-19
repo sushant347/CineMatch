@@ -10,3 +10,4 @@ python-decouple>=3.8
 redis>=5.0
 django-redis>=5.4
 celery>=5.4
+
