@@ -135,3 +135,4 @@ function MovieRow({
 }
 
 export default memo(MovieRow);
+
