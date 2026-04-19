@@ -1,0 +1,61 @@
+# -----------------------------
+# Environment and local secrets
+# -----------------------------
+backend/.env
+.env
+.env.*
+!backend/.env.example
+
+# -----------------------------
+# Python / Django artifacts
+# -----------------------------
+.venv/
+venv/
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# SQLite database (local/dev)
+backend/db.sqlite3
+
+# Django static/media build outputs
+backend/staticfiles/
+backend/media/
+
+# -----------------------------
+# Node / frontend artifacts
+# -----------------------------
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# -----------------------------
+# Large local data/model artifacts
+# Keep scripts in git, ignore generated/ingested binaries
+# -----------------------------
+data/raw/
+data/processed/*
+!data/processed/movies_merged.csv
+!data/processed/ratings_subset.csv
+ml/models/*.pkl
+ml/models/*.npz
+
+# -----------------------------
+# Editor / OS noise
+# -----------------------------
+.vscode/
+.DS_Store
+Thumbs.db
+movie.md
+need.md
+IMPLEMENTATION.py
