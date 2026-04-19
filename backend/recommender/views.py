@@ -132,6 +132,14 @@ def _normalize_title_for_hero_match(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).strip()
 
 
+def _canonical_review_title(value: str) -> str:
+    """Normalize a movie title for review grouping across catalog variants."""
+    normalized = _normalize_title_for_hero_match(value)
+    normalized = re.sub(r"\b(19|20)\d{2}\b", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
 def _score_hero_title_match(normalized_movie_title: str, movie: Movie, normalized_queries):
     best_score = 0
     for query_index, normalized_query in enumerate(normalized_queries):
@@ -491,6 +499,121 @@ def _enrich_recommendations(rec_list, movie_payload_map=None):
     return enriched
 
 
+def _movie_queryset_recommendations(queryset, reason=""):
+    """Convert a Movie queryset/list into API recommendation payload shape."""
+    movies = list(queryset)
+    if not movies:
+        return []
+
+    serialized_movies = MovieCardSerializer(movies, many=True).data
+    payload = []
+    for index, movie in enumerate(movies):
+        payload.append(
+            {
+                "movie": serialized_movies[index],
+                "score": float(movie.popularity or 0.0),
+                "reason": reason,
+            }
+        )
+    return payload
+
+
+def _db_trending_payload(n):
+    movies = _movie_card_queryset().order_by("-popularity", "-vote_average")[:n]
+    return _movie_queryset_recommendations(movies, reason="Trending now")
+
+
+def _db_hindi_payload(n):
+    movies = (
+        _movie_card_queryset()
+        .filter(original_language__iexact="hi")
+        .order_by("-popularity", "-vote_average")[:n]
+    )
+    return _movie_queryset_recommendations(movies, reason="Popular Hindi")
+
+
+def _db_similar_payload(movie_id, n):
+    """Fast DB-only similar movie fallback used by modal "More Like This"."""
+    movie = _movie_card_queryset().filter(movie_id=movie_id).first()
+    if not movie:
+        return []
+
+    movie_genres = [g.strip() for g in str(movie.genres or "").split("|") if g.strip()]
+    language = (movie.original_language or "").strip().lower()
+
+    selected_payload = []
+    selected_ids = {int(movie_id)}
+
+    def append_movies(queryset, reason):
+        rows = list(queryset)
+        if not rows:
+            return
+
+        serialized_rows = MovieCardSerializer(rows, many=True).data
+        for index, row in enumerate(rows):
+            row_id = int(row.movie_id)
+            if row_id in selected_ids:
+                continue
+
+            selected_ids.add(row_id)
+            selected_payload.append(
+                {
+                    "movie": serialized_rows[index],
+                    "score": float(row.popularity or 0.0),
+                    "reason": reason,
+                }
+            )
+            if len(selected_payload) >= n:
+                break
+
+    genre_q = Q()
+    for genre in movie_genres[:3]:
+        genre_q |= Q(genres__icontains=genre)
+
+    genre_reason = "Similar movie"
+    if movie_genres:
+        genre_reason = f"Similar {' · '.join(movie_genres[:2])} film"
+
+    if genre_q:
+        if language:
+            append_movies(
+                _movie_card_queryset()
+                .exclude(movie_id__in=selected_ids)
+                .filter(genre_q)
+                .filter(original_language__iexact=language)
+                .order_by("-vote_average", "-popularity")[: n * 3],
+                genre_reason,
+            )
+
+        if len(selected_payload) < n:
+            append_movies(
+                _movie_card_queryset()
+                .exclude(movie_id__in=selected_ids)
+                .filter(genre_q)
+                .order_by("-vote_average", "-popularity")[: n * 4],
+                genre_reason,
+            )
+
+    if len(selected_payload) < n and language:
+        append_movies(
+            _movie_card_queryset()
+            .exclude(movie_id__in=selected_ids)
+            .filter(original_language__iexact=language)
+            .order_by("-popularity", "-vote_average")[: n * 3],
+            f"Popular {language.upper()} pick",
+        )
+
+    if len(selected_payload) < n:
+        append_movies(
+            _movie_card_queryset()
+            .exclude(movie_id__in=selected_ids)
+            .order_by("-popularity", "-vote_average")[: n * 3],
+            "Popular pick",
+        )
+
+    return selected_payload[:n]
+
+
 @api_view(["GET"])
 def recommend_for_user(request, user_id):
     """Hybrid recommendations for a specific user."""
@@ -511,56 +634,10 @@ def recommend_for_user(request, user_id):
 
 @api_view(["GET"])
 def recommend_similar(request, movie_id):
-    """Content-based similar movies with genre-based fallback."""
+    """Fast similar movies feed for modal cards (DB-first, no ML warmup)."""
     n = _parse_limit(request.query_params.get("n"), default=12, maximum=100)
-    recs = engine.get_similar_movies(movie_id, n=n)
-    enriched = _enrich_recommendations(recs)
-
-    # If engine returns fewer results than needed, pad with genre/language-based movies
-    if len(enriched) < n:
-        try:
-            movie = Movie.objects.filter(movie_id=movie_id).first()
-            if movie:
-                already_ids = {int(r["movie"]["movie_id"]) for r in enriched}
-                already_ids.add(int(movie_id))
-
-                # Extract genres and language for similarity
-                movie_genres = [g.strip() for g in str(movie.genres or "").split("|") if g.strip()]
-                lang = (movie.original_language or "en").strip()
-
-                # Build Q filter for genre overlap
-                genre_q = Q()
-                for genre in movie_genres[:3]:  # top 3 genres
-                    genre_q |= Q(genres__icontains=genre)
-
-                needed = n - len(enriched)
-                fallback_qs = (
-                    _movie_card_queryset()
-                    .filter(genre_q)
-                    .exclude(movie_id__in=already_ids)
-                    .order_by("-vote_average", "-popularity")[: needed * 3]
-                )
-
-                fallback_movies = list(fallback_qs)
-
-                # Prefer same-language movies first
-                same_lang = [m for m in fallback_movies if m.original_language == lang]
-                other_lang = [m for m in fallback_movies if m.original_language != lang]
-                sorted_fallback = same_lang + other_lang
-
-                for fallback_movie in sorted_fallback[:needed]:
-                    already_ids.add(int(fallback_movie.movie_id))
-                    movie_data = MovieCardSerializer(fallback_movie).data
-                    enriched.append({
-                        "movie": movie_data,
-                        "score": float(fallback_movie.vote_average or 0.0) / 10.0,
-                        "reason": f"Similar {' · '.join(movie_genres[:2])} film",
-                    })
-
-        except Exception:
-            pass  # Silently fall through if genre lookup fails
-
-    return Response(enriched)
+    cache_key = f"api:similar:db:{int(movie_id)}:{n}:v2"
+    return Response(_cached_response_payload(cache_key, 300, lambda: _db_similar_payload(movie_id, n)))
 
 
 
@@ -568,16 +645,16 @@ def recommend_similar(request, movie_id):
 def trending(request):
     """Trending movies by popularity."""
     n = _parse_limit(request.query_params.get("n"), default=20, maximum=100)
-    recs = engine.get_trending(n=n)
-    return Response(_enrich_recommendations(recs))
+    cache_key = f"api:trending:db:{n}"
+    return Response(_cached_response_payload(cache_key, 180, lambda: _db_trending_payload(n)))
 
 
 @api_view(["GET"])
 def hindi_movies(request):
     """Popular Hindi movies."""
     n = _parse_limit(request.query_params.get("n"), default=20, maximum=100)
-    recs = engine.get_hindi_movies(n=n)
-    return Response(_enrich_recommendations(recs))
+    cache_key = f"api:hindi:db:{n}"
+    return Response(_cached_response_payload(cache_key, 180, lambda: _db_hindi_payload(n)))
 
 
 @api_view(["GET"])
@@ -928,15 +1005,9 @@ def home_data(request):
         cache_key = "api:home:anon:v2"
 
         def build_anon_payload():
-            trending_recs = engine.get_trending(n=15)
-            hindi_recs = engine.get_hindi_movies(n=15)
-            movie_payload_map = _build_movie_payload_map(
-                [item.get("movie_id") for item in trending_recs]
-                + [item.get("movie_id") for item in hindi_recs]
-            )
             return {
-                "trending": _enrich_recommendations(trending_recs, movie_payload_map),
-                "hindi": _enrich_recommendations(hindi_recs, movie_payload_map),
+                "trending": _db_trending_payload(15),
+                "hindi": _db_hindi_payload(15),
             }
 
         return Response(_cached_response_payload(cache_key, HOME_CACHE_TTL_SECONDS, build_anon_payload))
@@ -1343,19 +1414,25 @@ def movie_reviews(request, movie_id):
 
     limit = _parse_limit(request.query_params.get("n"), default=50, maximum=200)
 
-    def build_reviews_payload():
-        review_rows = list(
-            Review.objects.filter(movie_id=movie_id)
-            .order_by("-updated_at", "-created_at")
-            .values("movie_id", "user_id", "review_text", "created_at", "updated_at")[:limit]
+    try:
+        movie_id = int(movie_id)
+    except (TypeError, ValueError):
+        return Response(
+            {"error": "Invalid movie_id"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def serialize_reviews(review_rows, is_related_title=False):
+        if not review_rows:
+            return []
 
         name_map = _build_user_name_map([row["user_id"] for row in review_rows])
         payload = []
+
         for row in review_rows:
             resolved_user_name = str(name_map.get(int(row["user_id"]), "")).strip()
             if _is_generic_review_user_name(resolved_user_name):
-                continue
+                resolved_user_name = f"Viewer {int(row['user_id'])}"
 
             payload.append(
                 {
@@ -1366,25 +1443,98 @@ def movie_reviews(request, movie_id):
                     "is_mine": False,
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
+                    "is_fallback": bool(is_related_title),
+                    "is_related_title": bool(is_related_title),
+                    "source_movie_id": int(row["movie_id"]) if is_related_title else None,
+                    "source_movie_title": str(row.get("movie__title") or "") if is_related_title else "",
                 }
             )
 
         return payload
 
+    def primary_review_rows():
+        return list(
+            Review.objects.filter(movie_id=movie_id)
+            .order_by("-updated_at", "-created_at")
+            .values("movie_id", "user_id", "review_text", "created_at", "updated_at")[:limit]
+        )
+
+    def related_title_review_rows():
+        source_movie = Movie.objects.filter(movie_id=movie_id).only(
+            "movie_id", "title", "year"
+        ).first()
+        if not source_movie:
+            return []
+
+        canonical_title = _canonical_review_title(source_movie.title)
+        if not canonical_title:
+            return []
+
+        search_seed = canonical_title.split(" ")[0]
+        if not search_seed:
+            return []
+
+        source_year = int(source_movie.year) if source_movie.year else None
+
+        candidate_movies = list(
+            Movie.objects.exclude(movie_id=movie_id)
+            .only("movie_id", "title", "year")
+            .filter(title__icontains=search_seed)
+            .order_by("-popularity")[:300]
+        )
+
+        related_movie_ids = []
+        for candidate_movie in candidate_movies:
+            if _canonical_review_title(candidate_movie.title) != canonical_title:
+                continue
+
+            if source_year and candidate_movie.year:
+                if abs(int(candidate_movie.year) - source_year) > 1:
+                    continue
+
+            related_movie_ids.append(int(candidate_movie.movie_id))
+            if len(related_movie_ids) >= 80:
+                break
+
+        if not related_movie_ids:
+            return []
+
+        return list(
+            Review.objects.filter(movie_id__in=related_movie_ids)
+            .order_by("-updated_at", "-created_at")
+            .values(
+                "movie_id",
+                "movie__title",
+                "user_id",
+                "review_text",
+                "created_at",
+                "updated_at",
+            )[:limit]
+        )
+
+    def build_reviews_payload():
+        direct_reviews = serialize_reviews(primary_review_rows(), is_related_title=False)
+        if direct_reviews:
+            return direct_reviews
+        return serialize_reviews(related_title_review_rows(), is_related_title=True)
+
     try:
-        reviews_payload = build_reviews_payload()
+        review_version = _review_cache_version(movie_id)
+        cache_key = f"api:reviews:{int(movie_id)}:{int(limit)}:v{review_version}:v3"
+        cached_payload = _cached_response_payload(cache_key, REVIEWS_CACHE_TTL_SECONDS, build_reviews_payload)
+
         if viewer_user_id <= 0:
-            return Response(reviews_payload)
+            return Response(cached_payload)
 
         viewer_id = int(viewer_user_id)
-        personalized = [
+        personalized_payload = [
             {
                 **row,
-                "is_mine": int(row["user_id"]) == viewer_id,
+                "is_mine": int(row.get("user_id") or 0) == viewer_id,
             }
-            for row in reviews_payload
+            for row in cached_payload
         ]
-        return Response(personalized)
+        return Response(personalized_payload)
     except Exception:
         return Response(
             {"error": "Unable to fetch reviews"},
