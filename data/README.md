@@ -27,3 +27,4 @@ backend/.venv/Scripts/python.exe data/prepare_data.py
 ```
 
 This generates processed CSV files under data/processed/ for import/training workflows.
+
