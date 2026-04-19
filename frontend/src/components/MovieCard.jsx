@@ -320,3 +320,4 @@ function areCardPropsEqual(prevProps, nextProps) {
 }
 
 export default memo(MovieCard, areCardPropsEqual);
+
