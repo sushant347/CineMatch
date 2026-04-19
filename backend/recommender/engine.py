@@ -11,7 +11,6 @@ import pickle
 import numpy as np
 from django.conf import settings
 from django.core.cache import cache
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 RECOMMENDATION_CACHE_TTL_SECONDS = 900
@@ -53,6 +52,8 @@ class RecommendationEngine:
 
         with open(os.path.join(model_dir, "movies_metadata.pkl"), "rb") as f:
             self.movies_df = pickle.load(f)
+
+        self.tfidf_row_norms = self._row_norms(self.tfidf_matrix)
 
         self.collab_movie_ids = [
             self.collab["idx_to_movie"][i]
@@ -116,6 +117,18 @@ class RecommendationEngine:
             return (values - v_min) / (v_max - v_min)
         return np.zeros_like(values)
 
+    @staticmethod
+    def _row_norms(matrix):
+        """Compute stable L2 norms for dense or sparse row matrices."""
+        if hasattr(matrix, "multiply"):
+            norms = np.sqrt(matrix.multiply(matrix).sum(axis=1)).A1
+        else:
+            norms = np.linalg.norm(np.asarray(matrix), axis=1)
+
+        norms = np.asarray(norms, dtype=np.float32)
+        norms[norms == 0] = 1.0
+        return norms
+
     def _get_item_factors_by_movie(self):
         """Return item factors as (n_movies, n_factors) for both ALS/SVD artifacts."""
         item_factors = self.collab["item_factors"]
@@ -146,7 +159,17 @@ class RecommendationEngine:
         if not liked_indices:
             return np.zeros(len(self.collab_movie_ids), dtype=np.float32)
 
-        sims = cosine_similarity(self.tfidf_matrix[liked_indices], self.tfidf_matrix).mean(axis=0)
+        liked_matrix = self.tfidf_matrix[liked_indices]
+        dot_products = liked_matrix @ self.tfidf_matrix.T
+        if hasattr(dot_products, "toarray"):
+            dot_products = dot_products.toarray()
+
+        dot_products = np.asarray(dot_products, dtype=np.float32)
+        liked_norms = self._row_norms(liked_matrix)
+        sims = dot_products / liked_norms[:, None]
+        sims = sims / self.tfidf_row_norms[None, :]
+        sims = sims.mean(axis=0)
+
         content_scores = np.zeros(len(self.collab_movie_ids), dtype=np.float32)
         valid_mask = self.collab_to_content >= 0
         content_scores[valid_mask] = sims[self.collab_to_content[valid_mask]]
