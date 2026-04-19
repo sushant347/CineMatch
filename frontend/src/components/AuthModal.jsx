@@ -172,3 +172,4 @@ export default function AuthModal({ open, onClose, onSubmit, loading }) {
     </div>
   );
 }
+
