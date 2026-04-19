@@ -1,0 +1,12 @@
+pandas==2.2.2
+numpy>=1.24
+scikit-learn==1.6.1
+scipy>=1.10
+django>=5.0
+djangorestframework>=3.14
+django-cors-headers>=4.0
+psycopg2-binary>=2.9
+python-decouple>=3.8
+redis>=5.0
+django-redis>=5.4
+celery>=5.4
