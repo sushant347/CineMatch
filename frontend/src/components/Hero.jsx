@@ -39,13 +39,14 @@ function buildHeroResponsiveSource(url) {
   const assetPath = match[2];
   const base = normalizedUrl.slice(0, normalizedUrl.indexOf('/t/p/'));
   return {
-    src: `${base}/t/p/w780/${assetPath}`,
+    src: `${base}/t/p/w500/${assetPath}`,
     srcSet: [
+      `${base}/t/p/w342/${assetPath} 342w`,
       `${base}/t/p/w500/${assetPath} 500w`,
       `${base}/t/p/w780/${assetPath} 780w`,
       `${base}/t/p/w1280/${assetPath} 1280w`,
     ].join(', '),
-    sizes: '100vw',
+    sizes: '(max-width: 900px) 100vw, 92vw',
   };
 }
 

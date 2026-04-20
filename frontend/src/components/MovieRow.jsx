@@ -15,6 +15,7 @@ function MovieRow({
   onToggleWatched,
   userId,
   prioritizeImages = false,
+  ultraFastImages = false,
 }) {
   const sliderRef = useRef(null);
   const visibleMovies = useMemo(
@@ -117,6 +118,7 @@ function MovieRow({
                 userId={userId}
                 imageLoading={index < eagerThreshold ? 'eager' : 'lazy'}
                 imageFetchPriority={index < highPriorityThreshold ? 'high' : 'auto'}
+                ultraFastImages={ultraFastImages}
               />
             );
           })}

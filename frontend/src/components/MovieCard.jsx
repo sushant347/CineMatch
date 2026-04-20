@@ -8,7 +8,7 @@ const CARD_POSTER_WIDTH = 780;
 const CARD_POSTER_HEIGHT = 439;
 const POPUP_WIDTH = 300;
 
-function buildTmdbSrcSet(url) {
+function buildTmdbSrcSet(url, { ultraFast = false } = {}) {
   const normalizedUrl = String(url || '').trim();
   if (!normalizedUrl.includes('image.tmdb.org/t/p/')) {
     return { src: normalizedUrl, srcSet: undefined, sizes: undefined };
@@ -20,15 +20,21 @@ function buildTmdbSrcSet(url) {
   const assetPath = match[2];
   const base = normalizedUrl.slice(0, normalizedUrl.indexOf('/t/p/'));
   const srcSet = [
+    `${base}/t/p/w154/${assetPath} 154w`,
     `${base}/t/p/w185/${assetPath} 185w`,
     `${base}/t/p/w300/${assetPath} 300w`,
     `${base}/t/p/w500/${assetPath} 500w`,
-    `${base}/t/p/w780/${assetPath} 780w`,
   ].join(', ');
+
+  const srcSize = ultraFast ? 'w154' : 'w185';
+  const sizes = ultraFast
+    ? '(max-width: 640px) 40vw, (max-width: 900px) 24vw, 14vw'
+    : '(max-width: 640px) 46vw, (max-width: 900px) 30vw, 16vw';
+
   return {
-    src: `${base}/t/p/w300/${assetPath}`,
+    src: `${base}/t/p/${srcSize}/${assetPath}`,
     srcSet,
-    sizes: '(max-width: 640px) 52vw, (max-width: 900px) 36vw, 22vw',
+    sizes,
   };
 }
 
@@ -201,24 +207,42 @@ function MovieCard({
   imageLoading = 'lazy',
   imageFetchPriority = 'auto',
   popupVariant = 'detached',
+  ultraFastImages = false,
 }) {
   const safeMovie = movie && typeof movie === 'object' ? movie : null;
   const movieId = Number(safeMovie?.movie_id);
 
   const imageCandidates = useMemo(() => {
     if (!safeMovie) return [];
-    const wideUrls = [
-      safeMovie.hero_image_url,
-      safeMovie.backdrop_url,
+    const lightweightUrls = [
       safeMovie.card_image_url,
+      safeMovie.poster_url,
     ].filter(Boolean);
-    const urls = wideUrls.length > 0 ? wideUrls : [safeMovie.poster_url].filter(Boolean);
-    return Array.from(new Set(urls));
-  }, [safeMovie?.hero_image_url, safeMovie?.card_image_url, safeMovie?.poster_url, safeMovie?.backdrop_url]);
+
+    if (ultraFastImages && lightweightUrls.length > 0) {
+      return Array.from(new Set(lightweightUrls));
+    }
+
+    const prioritizedUrls = [
+      ...lightweightUrls,
+      safeMovie.backdrop_url,
+      safeMovie.hero_image_url,
+    ].filter(Boolean);
+    return Array.from(new Set(prioritizedUrls));
+  }, [
+    safeMovie?.hero_image_url,
+    safeMovie?.card_image_url,
+    safeMovie?.poster_url,
+    safeMovie?.backdrop_url,
+    ultraFastImages,
+  ]);
 
   const [imageCandidateIndex, setImageCandidateIndex] = useState(0);
   const activeImageUrl = imageCandidates[imageCandidateIndex] || '';
-  const activeImage = useMemo(() => buildTmdbSrcSet(activeImageUrl), [activeImageUrl]);
+  const activeImage = useMemo(
+    () => buildTmdbSrcSet(activeImageUrl, { ultraFast: ultraFastImages }),
+    [activeImageUrl, ultraFastImages],
+  );
 
   // Popup image: prefer wide backdrop for a good 16:9 crop
   const popupImageUrl = useMemo(
@@ -553,6 +577,7 @@ function areCardPropsEqual(prevProps, nextProps) {
   if (prevProps.imageLoading !== nextProps.imageLoading) return false;
   if (prevProps.imageFetchPriority !== nextProps.imageFetchPriority) return false;
   if (prevProps.popupVariant !== nextProps.popupVariant) return false;
+  if (prevProps.ultraFastImages !== nextProps.ultraFastImages) return false;
 
   const watchlistChanged = Boolean(prevProps.watchlist?.has(nextMovieId)) !== Boolean(nextProps.watchlist?.has(nextMovieId));
   if (watchlistChanged) return false;

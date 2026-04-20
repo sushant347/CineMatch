@@ -919,36 +919,12 @@ export default function App() {
   const heroMovie = heroMovies[0] || null;
 
   useEffect(() => {
-    if (!heroMovie) return;
-    warmMovieImage(heroMovie);
-  }, [heroMovie, warmMovieImage]);
-
-  useEffect(() => {
-    if (!heroMovies.length) return undefined;
-
-    const toWarm = heroMovies.slice(0, 2);
-    const warm = () => {
-      for (const movie of toWarm) {
-        warmMovieImage(movie);
-      }
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warm, { timeout: 700 });
-      return () => window.cancelIdleCallback(idleId);
-    }
-
-    const timeoutId = window.setTimeout(warm, 120);
-    return () => window.clearTimeout(timeoutId);
-  }, [heroMovies, warmMovieImage]);
-
-  useEffect(() => {
     const sourceMovies = combineMovieLists(
       homeData?.trending || [],
       homeData?.hindi || [],
       genreRows.comedy || [],
       genreRows.anime || [],
-    ).slice(0, 14);
+    ).slice(0, 6);
 
     if (!sourceMovies.length) return undefined;
 
@@ -959,11 +935,11 @@ export default function App() {
     };
 
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warm, { timeout: 900 });
+      const idleId = window.requestIdleCallback(warm, { timeout: 1800 });
       return () => window.cancelIdleCallback(idleId);
     }
 
-    const timeoutId = window.setTimeout(warm, 150);
+    const timeoutId = window.setTimeout(warm, 500);
     return () => window.clearTimeout(timeoutId);
   }, [homeData?.trending, homeData?.hindi, genreRows.comedy, genreRows.anime, warmRowImage]);
 
@@ -1050,6 +1026,7 @@ export default function App() {
                     userId={authUserId}
                     imageLoading={index < 6 ? 'eager' : 'lazy'}
                     imageFetchPriority={index < 3 ? 'high' : 'auto'}
+                    ultraFastImages
                   />
                 );
               })}
@@ -1122,6 +1099,7 @@ export default function App() {
                 watched={watched}
                 onToggleWatched={handleToggleWatched}
                 userId={authUserId}
+                ultraFastImages
               />
             )}
 
@@ -1136,6 +1114,8 @@ export default function App() {
               watched={watched}
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
+              prioritizeImages
+              ultraFastImages
             />
 
             <MovieRow
@@ -1150,6 +1130,7 @@ export default function App() {
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
               prioritizeImages
+              ultraFastImages
             />
 
             <MovieRow
@@ -1163,6 +1144,7 @@ export default function App() {
               watched={watched}
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
+              ultraFastImages
             />
 
             <MovieRow
@@ -1176,6 +1158,7 @@ export default function App() {
               watched={watched}
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
+              ultraFastImages
             />
 
             <MovieRow
@@ -1189,6 +1172,7 @@ export default function App() {
               watched={watched}
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
+              ultraFastImages
             />
 
             {/* Recommended for user */}
@@ -1203,6 +1187,7 @@ export default function App() {
                 watched={watched}
                 onToggleWatched={handleToggleWatched}
                 userId={authUserId}
+                ultraFastImages
               />
             )}
 
@@ -1218,6 +1203,7 @@ export default function App() {
                 watched={watched}
                 onToggleWatched={handleToggleWatched}
                 userId={authUserId}
+                ultraFastImages
               />
             )}
 
@@ -1232,6 +1218,7 @@ export default function App() {
               watched={watched}
               onToggleWatched={handleToggleWatched}
               userId={authUserId}
+              ultraFastImages
             />
 
             {/* Because you watched X */}
@@ -1246,6 +1233,7 @@ export default function App() {
                 watched={watched}
                 onToggleWatched={handleToggleWatched}
                 userId={authUserId}
+                ultraFastImages
               />
             ))}
           </div>
