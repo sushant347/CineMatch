@@ -17,6 +17,7 @@ OUT_DIR = os.path.join(BASE_DIR, "data", "processed")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RATINGS_SUBSAMPLE = 300_000  # enough signal for collaborative filtering quality
+MIN_MOVIE_YEAR = 2000
 
 
 def extract_year(title: str):
@@ -62,6 +63,7 @@ def main():
     movies_ml["clean_title"] = movies_ml["title"].apply(clean_title)
     movies_ml = movies_ml.dropna(subset=["year"])
     movies_ml["year"] = movies_ml["year"].astype(int)
+    movies_ml = movies_ml[movies_ml["year"] >= MIN_MOVIE_YEAR]
     print(f"  After cleaning: {len(movies_ml):,} movies with year info")
 
     # ── 3. Clean TMDB dataset ────────────────────────────────────
@@ -139,6 +141,9 @@ def main():
                                  "vote_average", "poster_path", "backdrop_path",
                                  "keywords", "release_date", "tagline"]].copy()
     movies_out = movies_out.drop_duplicates(subset=["movieId"])
+    movies_out["year"] = pd.to_numeric(movies_out["year"], errors="coerce")
+    movies_out = movies_out[movies_out["year"] >= MIN_MOVIE_YEAR]
+    movies_out["year"] = movies_out["year"].astype(int)
 
     movies_out["poster_path"] = movies_out["poster_path"].astype(str).str.strip()
     movies_out["backdrop_path"] = movies_out["backdrop_path"].astype(str).str.strip()

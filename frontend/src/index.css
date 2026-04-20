@@ -3,8 +3,6 @@
    Award-winning dark theme with cinema gradients
    ═══════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&display=swap');
-
 /* ── Reset & Base ── */
 *, *::before, *::after {
   margin: 0;
@@ -355,9 +353,11 @@ img {
 .hero {
   position: relative;
   width: 100%;
-  height: 88vh;
-  min-height: 560px;
-  max-height: 920px;
+  height: 100vh;
+  height: 100svh;
+  min-height: 100vh;
+  min-height: 100svh;
+  max-height: none;
   overflow: hidden;
   background: #000;
 }
@@ -686,6 +686,32 @@ img {
   box-shadow: 0 0 8px rgba(255,255,255,0.4);
 }
 
+.hero__scroll-down {
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.34);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all var(--transition-fast);
+}
+
+.hero__scroll-down:hover {
+  border-color: rgba(255, 255, 255, 0.48);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hero__scroll-down svg {
+  animation: heroScrollBounce 1.5s infinite;
+}
+
 /* Generic button styles */
 .btn {
   display: inline-flex;
@@ -749,21 +775,30 @@ img {
   }
 }
 
+@keyframes heroScrollBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
 /* ── Movie Row ── */
 .movie-row {
   position: relative;
   padding: 0 var(--content-padding);
-  margin-bottom: 48px;
-  /* Lazy-paint rows that are off-screen; massively reduces initial paint cost */
-  content-visibility: auto;
-  contain-intrinsic-size: 0 320px;
+  margin-bottom: 26px;
+  content-visibility: visible;
+  contain-intrinsic-size: auto;
 }
 
 .movie-row__header {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .movie-row__title {
@@ -783,10 +818,11 @@ img {
 
 .movie-row__slider {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
+  overflow-y: visible;
   scroll-behavior: smooth;
-  padding: 20px 0;
+  padding: 12px 4px 12px;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -800,14 +836,15 @@ img {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  width: 44px;
-  height: 100%;
+  width: 30px;
+  height: 58px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 20, 20, 0.7);
+  background: rgba(20, 20, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--text-primary);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   opacity: 0;
   transition: opacity var(--transition-fast);
   cursor: pointer;
@@ -822,46 +859,55 @@ img {
 }
 
 .movie-row__arrow--left {
-  left: -20px;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  left: -12px;
+  border-radius: 10px;
 }
 
 .movie-row__arrow--right {
-  right: -20px;
-  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  right: -12px;
+  border-radius: 10px;
 }
 
 /* ── Movie Card ── */
 .movie-card {
   position: relative;
-  flex: 0 0 calc((100% - 32px) / 5);
-  aspect-ratio: 2/3;
+  flex: 0 0 calc((100% - 50px) / 6);
+  aspect-ratio: 14/9;
   border-radius: var(--radius-md);
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   /* Only composite-friendly properties — no layout/paint triggers */
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition: transform 190ms ease, box-shadow 190ms ease;
   background: #0a0a0a;
   will-change: transform;
   /* Promote to own layer immediately so hover never causes repaint on siblings */
   transform: translateZ(0);
-  contain: layout style paint;
+  transform-origin: center center;
 }
 
 .movie-card:hover {
-  transform: translateY(-5px) translateZ(0);
-  z-index: 5;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.55);
+  /* Very subtle scale on the card itself so it seamlessly merges into the popup */
+  transform: scale(1.02) translateZ(0);
+  z-index: 20;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.movie-card--preview {
+  /* Keep card slightly elevated while popup is visible */
+  transform: scale(1.02) translateZ(0);
+  z-index: 28;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
 .movie-card__poster {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center center;
-  transition: opacity 280ms ease;
+  object-position: center 18%;
+  transition: opacity 280ms ease, transform 220ms ease;
   /* Avoid subpixel blurring on scale */
   backface-visibility: hidden;
+  image-rendering: auto;
 }
 
 .movie-card__poster.is-loading {
@@ -875,6 +921,7 @@ img {
   overflow: hidden;
   background: #050505;
   line-height: 0;
+  border-radius: var(--radius-md);
 }
 
 .movie-card__media::after {
@@ -882,7 +929,7 @@ img {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(0, 0, 0, 0.16);
   opacity: 0;
   transition: opacity 160ms ease;
 }
@@ -894,61 +941,250 @@ img {
   z-index: 4;
 }
 
-.movie-card:hover .movie-card__media::after {
-  opacity: 1;
+.movie-card--preview .movie-card__media::after {
+  opacity: 0.18;
 }
 
-.movie-card__info {
+.movie-card--preview .movie-card__poster {
+  transform: scale(1.01);
+}
+
+/* ── Movie Card Popup (Portal / Fixed) ── */
+
+/* Base popup: rendered into document.body via React portal */
+.movie-card-popup-portal {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  /* scale from center — feels like the card itself popping out */
+  transform: scale(0.97);
+  transform-origin: center top;
+  transition: opacity 220ms ease, transform 250ms cubic-bezier(0.2, 0, 0.1, 1), box-shadow 250ms ease;
+  will-change: opacity, transform;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+.movie-card-popup-portal.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  /* scale to 1.1 from center — card image area stays in place, grows slightly */
+  transform: scale(1.1);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255,255,255,0.07);
+}
+
+/* Image area: exact same height as the real card (passed via --card-height CSS var) */
+.movie-card-popup-portal__media {
+  position: relative;
+  width: 100%;
+  /* Use the actual card height so image overlaps card 1:1 */
+  height: var(--card-height, 160px);
+  overflow: hidden;
+  background: #000;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+}
+
+.movie-card-popup-portal__media:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: -2px;
+}
+
+.movie-card-popup-portal__poster {
   position: absolute;
-  bottom: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* center horizontally, show top portion (faces/title, not credits) */
+  object-position: center 20%;
+  display: block;
+  border-radius: 8px 8px 0 0;
+}
+
+/* Info body below image */
+.movie-card-popup-portal__body {
+  padding: 12px 14px 14px;
+  background: #141414;
+}
+
+/* Keep the inline variant CSS for alternative use */
+.movie-card--popup-inline .movie-card__popup {
+  position: absolute;
   left: 0;
   right: 0;
-  padding: 14px 10px 10px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.96));
+  top: 0;
+  bottom: 0;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  background: transparent;
+  transform: translateY(6px) scale(0.99);
   opacity: 0;
-  transform: translateY(6px) translateZ(0);
-  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 250ms ease, transform 250ms ease;
+}
+
+.movie-card--popup-inline.movie-card--preview .movie-card__popup,
+.movie-card--popup-inline:hover .movie-card__popup,
+.movie-card--popup-inline:focus-within .movie-card__popup {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  z-index: 100;
+  transition-delay: 0.25s;
+}
+
+.movie-card--popup-inline.movie-card--preview .movie-card__popup {
+  transition-delay: 0s;
+}
+
+.movie-card--popup-inline .movie-card__popup-media {
+  display: none;
+}
+
+.movie-card--popup-inline .movie-card__popup-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 58px 12px 14px;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0) 0%, rgba(14, 15, 18, 0.78) 42%, rgba(14, 15, 18, 0.96) 100%);
+}
+
+.movie-card--popup-inline .movie-card__popup-side-actions {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2;
+}
+
+.movie-card--popup-inline .movie-card__popup-side-actions .movie-card__popup-circle-btn {
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+}
+
+/* Shared card popup shell (used by inline) */
+.movie-card__popup {
+  border-radius: 8px;
+  overflow: hidden;
+  z-index: 99;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 250ms ease, transform 250ms ease;
   will-change: opacity, transform;
 }
 
-.movie-card:hover .movie-card__info {
-  opacity: 1;
-  transform: translateY(0) translateZ(0);
-}
-
-.movie-card__title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+.movie-card__popup-media {
+  position: relative;
+  width: 100%;
+  height: 0;
+  padding-top: 56.25%;
   overflow: hidden;
+  background: #000;
 }
 
-.movie-card__meta {
+.movie-card__popup-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+}
+
+
+.movie-card__popup-actions-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+}
+
+.movie-card__popup-actions-left {
+  display: flex;
   gap: 8px;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
 }
 
-.movie-card__rating {
-  color: var(--gold);
-  font-weight: 600;
+.movie-card__popup-circle-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(30, 30, 30, 0.6);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: all var(--transition-fast);
+  cursor: pointer;
 }
 
-.movie-card__genre {
-  color: var(--text-muted);
-  font-size: 0.7rem;
-  margin-top: 4px;
+.movie-card__popup-circle-btn:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.movie-card__popup-circle-btn.active {
+  border-color: #fff;
+}
+
+.movie-card__title-sleek {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #fff;
   display: -webkit-box;
   -webkit-line-clamp: 1;
   line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.movie-card__popup-metadata-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.movie-card__match-score {
+  color: #46d369;
+}
+
+.movie-card__age-rating,
+.movie-card__hd-badge {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 0 5px;
+  border-radius: 2px;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.movie-card__duration {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.movie-card__popup-genres-row {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .movie-card__lang-badge {
@@ -964,6 +1200,8 @@ img {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .movie-card__lang-badge--hi {
@@ -985,6 +1223,8 @@ img {
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: rgba(255, 255, 255, 0.8);
   transition: all var(--transition-fast);
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .movie-card__watched-btn {
@@ -1001,6 +1241,8 @@ img {
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: rgba(255, 255, 255, 0.8);
   transition: all var(--transition-fast);
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 .movie-card__watched-btn svg {
@@ -1045,8 +1287,8 @@ img {
 
 .movie-card__watchlist-tooltip {
   position: absolute;
-  top: 42px;
-  right: 8px;
+  top: -34px;
+  right: 16px;
   z-index: 8;
   background: rgba(0, 0, 0, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1068,11 +1310,6 @@ img {
   position: relative;
   z-index: 2;
   text-align: center;
-
-.movie-card__poster--contain {
-  object-fit: contain;
-  object-position: center center;
-}
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -1386,6 +1623,26 @@ img {
   margin-bottom: 26px;
 }
 
+.modal__reviews-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.modal__reviews-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .modal__review-form {
   display: grid;
   gap: 10px;
@@ -1529,8 +1786,8 @@ img {
 
 .modal__similar-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
   margin-bottom: 8px;
 }
 
@@ -1842,13 +2099,14 @@ img {
 }
 
 .skeleton--card {
-  aspect-ratio: 2/3;
-  flex: 0 0 calc((100% - 32px) / 5);
+  aspect-ratio: 16/9;
+  flex: 0 0 calc((100% - 50px) / 6);
 }
 
 .skeleton--hero {
   width: 100%;
-  height: 85vh;
+  height: 100vh;
+  height: 100svh;
 }
 
 .chunk-fallback {
@@ -1903,7 +2161,7 @@ img {
   padding-top: 14px;
   position: relative;
   z-index: 5;
-  contain: layout;
+  scroll-margin-top: calc(var(--nav-height) + 10px);
 }
 
 
@@ -2157,10 +2415,10 @@ img {
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .movie-card {
-    flex: 0 0 calc((100% - 24px) / 4);
+    flex: 0 0 calc((100% - 40px) / 5);
   }
   .skeleton--card {
-    flex: 0 0 calc((100% - 24px) / 4);
+    flex: 0 0 calc((100% - 40px) / 5);
   }
 }
 
@@ -2187,10 +2445,18 @@ img {
   }
 
   .movie-card {
-    flex: 0 0 calc((100% - 16px) / 3);
+    flex: 0 0 calc((100% - 20px) / 3);
   }
   .skeleton--card {
-    flex: 0 0 calc((100% - 16px) / 3);
+    flex: 0 0 calc((100% - 20px) / 3);
+  }
+
+  .movie-row__slider {
+    padding-bottom: 10px;
+  }
+
+  .modal__similar-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   /* Hero on tablet: widen content area because screen is smaller */
@@ -2231,14 +2497,24 @@ img {
     flex: 0 0 calc((100% - 8px) / 2);
   }
 
+  .movie-row__slider {
+    padding-bottom: 8px;
+  }
+
   .hero {
-    height: 60vh;
-    min-height: 380px;
+    height: 100vh;
+    height: 100svh;
+    min-height: 100vh;
+    min-height: 100svh;
   }
 
   .hero__backdrop {
     object-position: center 20%;
     filter: none;
+  }
+
+  .modal__similar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .hero__gradient {
