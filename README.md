@@ -110,4 +110,4 @@ Frontend runs on `http://localhost:3000` and proxies `/api` to `http://localhost
 
 ## License
 
-All copyright (c) 2024 CineMatch. All rights reserved. Unauthorized use, reproduction, or distribution is prohibited. For licensing inquiries, contact sushant98677@gmail.com
+All copyright © 2026 CineMatch. All rights reserved. Unauthorized use, reproduction, or distribution is prohibited. For licensing inquiries, contact sushant98677@gmail.com
